@@ -1,5 +1,6 @@
 package com.management.backend_management.controller;
 
+import java.util.ArrayList;
 import java.util.List;
 
 import org.springframework.http.HttpStatus;
@@ -13,8 +14,13 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.management.backend_management.dto.PatientRequest;
 import com.management.backend_management.entity.Patient;
 import com.management.backend_management.service.PatientService;
+
+import jakarta.validation.Valid;
+
+import com.management.backend_management.dto.PatientResponse;
 
 @RestController
 @RequestMapping("/api/patients")
@@ -27,21 +33,26 @@ public class PatientController {
     }
 
     @GetMapping
-    public List<Patient> getAll() {
-        return patientService.findAll();
+    public List<PatientResponse> getAll() {
+        List<Patient> patients = patientService.findAll();
+        List<PatientResponse> response = new ArrayList<>();
+        for (Patient patient : patients) {
+            response.add(toResponse(patient));
+        }
+        return response;
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<Patient> getById(@PathVariable Long id) {
+    public ResponseEntity<PatientResponse> getById(@PathVariable Long id) {
         return patientService.findById(id)
-            .map(ResponseEntity::ok)
+            .map(patient -> ResponseEntity.ok(toResponse(patient)))
             .orElse(ResponseEntity.notFound().build());
     }
 
     @PostMapping
-    public ResponseEntity<Patient> create(@RequestBody Patient patient) {
-        Patient created = patientService.createPatient(patient);
-        return ResponseEntity.status(HttpStatus.CREATED).body(created);
+    public ResponseEntity<PatientResponse> create(@Valid @RequestBody PatientRequest request) {
+        Patient created = patientService.createPatient(toEntity(request));
+        return ResponseEntity.status(HttpStatus.CREATED).body(toResponse(created));
     }
 
     @DeleteMapping("/{id}")
@@ -54,11 +65,28 @@ public class PatientController {
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<Patient> update(@PathVariable Long id, @RequestBody Patient patient) {
-        Patient updated = patientService.updatePatient(id, patient);
+    public ResponseEntity<PatientResponse> update(@PathVariable Long id, @Valid @RequestBody PatientRequest request) {
+        Patient updated = patientService.updatePatient(id, toEntity(request));
         if (updated == null) {
             return ResponseEntity.notFound().build();
         }
-        return ResponseEntity.ok(updated);
+        return ResponseEntity.ok(toResponse(updated));
+    }
+
+    private Patient toEntity(PatientRequest request) {
+        Patient patient = new Patient();
+        patient.setFirstName(request.getFirstName());
+        patient.setLastName(request.getLastName());
+        patient.setEmail(request.getEmail());
+        return patient;
+    }
+
+    private PatientResponse toResponse(Patient patient) {
+        PatientResponse response = new PatientResponse();
+        response.setId(patient.getId());
+        response.setFirstName(patient.getFirstName());
+        response.setLastName(patient.getLastName());
+        response.setEmail(patient.getEmail());
+        return response;
     }
 }
